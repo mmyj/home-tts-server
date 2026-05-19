@@ -1,1 +1,5 @@
 .claude/
+__pycache__/
+*.py[cod]
+prompts.db-wal
+prompts.db-shm

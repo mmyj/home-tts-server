@@ -49,6 +49,9 @@ function initVoiceClone() {
     document.getElementById('vcp_pt_file'),
     file => markFileUploaded(document.getElementById('vcp_pt_drop'), file)
   );
+
+  syncSpeedDisplay('vc_speed', 'vc_speed_val');
+  syncSpeedDisplay('vcp_speed', 'vcp_speed_val');
 }
 
 function switchCloneMode(mode) {
@@ -93,12 +96,15 @@ async function generateVC() {
 
   try {
     const refAudio = await AudioHelper.ensureWav(fileInput.files[0]);
+    const language = document.getElementById('vc_lang')?.value || 'Auto';
+    const sPrefix  = speedInstruct(document.getElementById('vc_speed')?.value || '1.0', language);
     const fd = new FormData();
     fd.append('text', text);
-    fd.append('language', document.getElementById('vc_lang')?.value || 'Auto');
+    fd.append('language', language);
     fd.append('ref_text', document.getElementById('vc_ref_text')?.value.trim() || '');
     fd.append('x_vector_only_mode', String(document.getElementById('vc_xvec')?.checked || false));
     fd.append('ref_audio', refAudio);
+    if (sPrefix) fd.append('instruct', sPrefix);
     Object.entries(getAdv('vc')).forEach(([k, v]) => fd.append(k, String(v)));
 
     setProgress('vc', 10);
@@ -140,8 +146,12 @@ async function savePromptVC() {
     const resp = await API.saveVoicePrompt(fd);
     if (!resp.ok) throw new Error(await resp.text());
     const blob = await resp.blob();
-    AudioHelper.downloadBlob(blob, 'voice_prompt.pt');
-    showStatus('vcp_save', 'success', '✅ Saved — voice_prompt.pt downloaded');
+    const pname = document.getElementById('vcp_prompt_name')?.value.trim() ||
+      'Prompt ' + new Date().toLocaleDateString('zh-CN');
+    AudioHelper.downloadBlob(blob, pname + '.pt');
+    try { await PromptDB.save(pname, blob); } catch (_) {}
+    if (typeof refreshPromptList === 'function') refreshPromptList();
+    showStatus('vcp_save', 'success', '✅ ' + pname + ' — saved & downloaded');
   } catch (e) {
     showStatus('vcp_save', 'error', '❌ ' + e.message);
   }
@@ -156,10 +166,13 @@ async function generateFromPromptVC() {
   if (!text) { showStatus('vcp', 'error', '❌ Please enter text'); return; }
   if (!ptInput?.files.length) { showStatus('vcp', 'error', '❌ Please upload a voice prompt (.pt) file'); return; }
 
+  const language = document.getElementById('vcp_lang')?.value || 'Auto';
+  const sPrefix  = speedInstruct(document.getElementById('vcp_speed')?.value || '1.0', language);
   const fd = new FormData();
   fd.append('text', text);
-  fd.append('language', document.getElementById('vcp_lang')?.value || 'Auto');
+  fd.append('language', language);
   fd.append('voice_prompt', ptInput.files[0]);
+  if (sPrefix) fd.append('instruct', sPrefix);
   Object.entries(getAdv('vcp')).forEach(([k, v]) => fd.append(k, String(v)));
 
   const btn = document.getElementById('btn_gen_vcp');

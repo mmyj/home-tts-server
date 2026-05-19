@@ -88,6 +88,10 @@ const TRANSLATIONS = {
     m_dur: 'Audio Duration', m_size: 'Data Size',
     footer_note: 'AI-generated audio for personal use only. Not for impersonation or illegal use.',
     lbl_paper: 'Paper',
+    tab_pt: 'Prompts', desc_pt: 'Manage saved voice prompts. Load directly into Voice Clone without re-uploading.',
+    lbl_prompt_name: 'Save name', ph_prompt_name: 'e.g. Recording 1',
+    btn_import_pt: 'Import .pt', pt_empty: 'No saved prompts',
+    btn_use_prompt: 'Use', btn_del_prompt: 'Delete',
   },
   'zh-CN': {
     subtitle: '自定义语音 · 语音设计 · 语音克隆 · 分词器',
@@ -127,6 +131,10 @@ const TRANSLATIONS = {
     m_dur: '音频时长', m_size: '数据大小',
     footer_note: 'AI 生成音频仅供个人使用，禁止用于冒充他人或非法用途。',
     lbl_paper: '论文',
+    tab_pt: 'Prompt 库', desc_pt: '管理已保存的声音 Prompt，可直接在「语音克隆 → Prompt 工作流」中使用，无需重复上传。',
+    lbl_prompt_name: '保存名称', ph_prompt_name: '例如：妈妈的声音',
+    btn_import_pt: '导入 .pt', pt_empty: '暂无已保存的 Prompt',
+    btn_use_prompt: '使用', btn_del_prompt: '删除',
   },
   'zh-TW': {
     subtitle: '自訂語音 · 語音設計 · 語音複製 · 分詞器',
@@ -166,6 +174,10 @@ const TRANSLATIONS = {
     m_dur: '音訊時長', m_size: '資料大小',
     footer_note: 'AI 生成音訊僅供個人使用，禁止用於冒充他人或非法用途。',
     lbl_paper: '論文',
+    tab_pt: 'Prompt 庫', desc_pt: '管理已儲存的聲音 Prompt，可直接在「語音複製 → Prompt 工作流」中使用，無需重複上傳。',
+    lbl_prompt_name: '儲存名稱', ph_prompt_name: '例如：媽媽的聲音',
+    btn_import_pt: '匯入 .pt', pt_empty: '尚無已儲存的 Prompt',
+    btn_use_prompt: '使用', btn_del_prompt: '刪除',
   },
   ja: {
     subtitle: 'カスタム音声 · 音声デザイン · 音声クローン · トークナイザー',
@@ -205,6 +217,10 @@ const TRANSLATIONS = {
     m_dur: '音声時間', m_size: 'データサイズ',
     footer_note: 'AI生成音声は個人利用のみ。なりすましや違法使用は禁止。',
     lbl_paper: '論文',
+    tab_pt: 'プロンプト', desc_pt: '保存した音声プロンプトを管理。音声クローン→プロンプトフローで再アップロード不要で使用できます。',
+    lbl_prompt_name: '保存名', ph_prompt_name: '例: お母さんの声',
+    btn_import_pt: 'インポート', pt_empty: '保存済みプロンプトなし',
+    btn_use_prompt: '使用', btn_del_prompt: '削除',
   },
 };
 
@@ -233,6 +249,7 @@ function setLanguage(lang) {
 
   // Re-render speaker sidebar so descriptions switch language
   initSpeakerSidebar();
+  if (typeof refreshPromptList === 'function') refreshPromptList();
 
   const sel = document.getElementById('langSelect');
   if (sel && sel.value !== lang) sel.value = lang;
