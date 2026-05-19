@@ -1,3 +1,34 @@
+async function refreshVcpLibSelect() {
+  const sel = document.getElementById('vcp_lib_select');
+  if (!sel) return;
+  while (sel.options.length > 1) sel.remove(1);
+  try {
+    const items = await PromptDB.list();
+    items.forEach(item => {
+      const opt = document.createElement('option');
+      opt.value = item.id;
+      opt.textContent = item.name;
+      sel.appendChild(opt);
+    });
+  } catch (_) {}
+}
+
+async function loadLibPromptIntoStep2(id) {
+  if (!id) return;
+  const sel = document.getElementById('vcp_lib_select');
+  const name = sel?.options[sel.selectedIndex]?.textContent || 'prompt';
+  let blob;
+  try { blob = await PromptDB.get(Number(id)); }
+  catch (e) { alert('Failed to load: ' + e.message); return; }
+  const file  = new File([blob], name + '.pt', { type: 'application/octet-stream' });
+  const input = document.getElementById('vcp_pt_file');
+  const drop  = document.getElementById('vcp_pt_drop');
+  const dt    = new DataTransfer();
+  dt.items.add(file);
+  input.files = dt.files;
+  markFileUploaded(drop, file);
+}
+
 function initVoiceClone() {
   // Populate language selects for both modes
   ['vc_lang', 'vcp_lang'].forEach(id => {
@@ -52,6 +83,7 @@ function initVoiceClone() {
 
   syncSpeedDisplay('vc_speed', 'vc_speed_val');
   syncSpeedDisplay('vcp_speed', 'vcp_speed_val');
+  refreshVcpLibSelect();
 }
 
 function switchCloneMode(mode) {
@@ -123,40 +155,56 @@ async function generateVC() {
   if (btn) btn.disabled = false;
 }
 
-// Save voice prompt — POST /api/voice-prompt/save → download .pt
-async function savePromptVC() {
+// Shared: convert audio, call TTS server, return {blob, pname}
+async function _buildPromptBlob() {
   const fileInput = document.getElementById('vcp_ref_file');
   if (!fileInput?.files.length) {
     showStatus('vcp_save', 'error', '❌ Please upload reference audio');
-    return;
+    return null;
   }
-
-  const btn = document.getElementById('btn_save_prompt');
-  if (btn) btn.disabled = true;
+  const btn1 = document.getElementById('btn_save_to_lib');
+  const btn2 = document.getElementById('btn_download_prompt');
+  if (btn1) btn1.disabled = true;
+  if (btn2) btn2.disabled = true;
   showStatus('vcp_save', 'loading', 'Converting audio...');
-
   try {
     const refAudio = await AudioHelper.ensureWav(fileInput.files[0]);
     const fd = new FormData();
     fd.append('ref_audio', refAudio);
     fd.append('ref_text', document.getElementById('vcp_ref_text')?.value.trim() || '');
     fd.append('x_vector_only_mode', String(document.getElementById('vcp_xvec')?.checked || false));
-
-    showStatus('vcp_save', 'loading', 'Saving voice prompt...');
+    showStatus('vcp_save', 'loading', 'Processing voice prompt...');
     const resp = await API.saveVoicePrompt(fd);
     if (!resp.ok) throw new Error(await resp.text());
-    const blob = await resp.blob();
+    const blob  = await resp.blob();
     const pname = document.getElementById('vcp_prompt_name')?.value.trim() ||
       'Prompt ' + new Date().toLocaleDateString('zh-CN');
-    AudioHelper.downloadBlob(blob, pname + '.pt');
-    try { await PromptDB.save(pname, blob); } catch (_) {}
-    if (typeof refreshPromptList === 'function') refreshPromptList();
-    showStatus('vcp_save', 'success', '✅ ' + pname + ' — saved & downloaded');
+    return { blob, pname };
   } catch (e) {
     showStatus('vcp_save', 'error', '❌ ' + e.message);
+    return null;
+  } finally {
+    if (btn1) btn1.disabled = false;
+    if (btn2) btn2.disabled = false;
   }
+}
 
-  if (btn) btn.disabled = false;
+async function saveToLibraryVC() {
+  const result = await _buildPromptBlob();
+  if (!result) return;
+  const { blob, pname } = result;
+  try { await PromptDB.save(pname, blob); } catch (_) {}
+  if (typeof refreshPromptList === 'function') refreshPromptList();
+  refreshVcpLibSelect();
+  showStatus('vcp_save', 'success', '✅ ' + pname + ' — saved to library');
+}
+
+async function downloadPromptVC() {
+  const result = await _buildPromptBlob();
+  if (!result) return;
+  const { blob, pname } = result;
+  AudioHelper.downloadBlob(blob, pname + '.pt');
+  showStatus('vcp_save', 'success', '✅ ' + pname + '.pt — downloaded');
 }
 
 // Generate from saved prompt — POST /api/tts/voice-clone-from-prompt (multipart)
