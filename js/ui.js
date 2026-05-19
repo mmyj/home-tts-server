@@ -93,6 +93,11 @@ const TRANSLATIONS = {
     lbl_prompt_name: 'Save name', ph_prompt_name: 'e.g. Recording 1',
     btn_import_pt: 'Import .pt', pt_empty: 'No saved prompts',
     btn_use_prompt: 'Use', btn_del_prompt: 'Delete',
+    tab_st: 'Settings',
+    lbl_parallel_tts: 'Parallel TTS',
+    desc_parallel_tts: 'Split text into sentences, generate each segment concurrently, then merge into one audio file. Streaming mode is bypassed when active.',
+    lbl_concurrency: 'Max Concurrency',
+    lbl_split_min_len: 'Min Segment Length (chars)',
   },
   'zh-CN': {
     subtitle: '自定义语音 · 语音设计 · 语音克隆 · 分词器',
@@ -137,6 +142,11 @@ const TRANSLATIONS = {
     lbl_prompt_name: '保存名称', ph_prompt_name: '例如：妈妈的声音',
     btn_import_pt: '导入 .pt', pt_empty: '暂无已保存的 Prompt',
     btn_use_prompt: '使用', btn_del_prompt: '删除',
+    tab_st: '设置',
+    lbl_parallel_tts: '并发 TTS',
+    desc_parallel_tts: '将文本按句子分割，并发请求 TTS 接口，完成后合并为完整音频。开启后自动跳过流式模式。',
+    lbl_concurrency: '最大并发数',
+    lbl_split_min_len: '最小分段长度（字符）',
   },
 };
 
@@ -406,4 +416,86 @@ function fillSample(textareaId, langSelectId) {
   const sample = SAMPLE_TEXTS[lang] || '';
   const ta     = document.getElementById(textareaId);
   if (ta) ta.value = sample;
+}
+
+// ── Settings (localStorage) ──
+
+function getSettings() {
+  try { return JSON.parse(localStorage.getItem('tts_settings') || '{}'); }
+  catch { return {}; }
+}
+
+function saveSettings(settings) {
+  localStorage.setItem('tts_settings', JSON.stringify(settings));
+}
+
+// ── Parallel TTS ──
+
+function splitTextForTTS(text) {
+  const minLen = getSettings().splitMinLength || 20;
+  const raw = text.match(/[^。！？!?\n]+[。！？!?\n]*/g) || [text.trim()];
+  const segments = [];
+  let current = '';
+  for (const seg of raw) {
+    current += seg;
+    if (current.trim().length >= minLen) {
+      segments.push(current.trim());
+      current = '';
+    }
+  }
+  if (current.trim()) {
+    if (segments.length > 0) segments[segments.length - 1] += current.trim();
+    else segments.push(current.trim());
+  }
+  return segments.filter(s => s.length > 0);
+}
+
+async function runWithConcurrency(tasks, limit) {
+  const results = new Array(tasks.length);
+  let nextIdx = 0;
+  async function worker() {
+    while (nextIdx < tasks.length) {
+      const i = nextIdx++;
+      results[i] = await tasks[i]();
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, worker));
+  return results;
+}
+
+async function tryParallelGenerate(text, makeRequest, prefix) {
+  const settings = getSettings();
+  if (!settings.parallelEnabled) return false;
+  const segments = splitTextForTTS(text);
+  if (segments.length <= 1) return false;
+
+  const concurrency = settings.parallelConcurrency || 3;
+  const t0 = performance.now();
+  let completed = 0;
+
+  showStatus(prefix, 'loading', `0 / ${segments.length}`);
+  setProgress(prefix, 5);
+
+  const blobs = await runWithConcurrency(
+    segments.map(seg => async () => {
+      const resp = await makeRequest(seg);
+      if (!resp.ok) throw new Error(await resp.text());
+      const blob = await resp.blob();
+      completed++;
+      setProgress(prefix, 5 + Math.round((completed / segments.length) * 88));
+      showStatus(prefix, 'loading', `${completed} / ${segments.length}`);
+      return blob;
+    }),
+    concurrency,
+  );
+
+  showStatus(prefix, 'loading', 'Merging...');
+  const merged = await AudioHelper.mergeWavBlobs(blobs);
+  const elapsed = (performance.now() - t0) / 1000;
+
+  showAudio(prefix, merged);
+  setProgress(prefix, 100);
+  showStatus(prefix, 'success',
+    `✅ ${segments.length} segs · ${(merged.size / 1024).toFixed(0)} KB · ${elapsed.toFixed(2)}s`);
+  return true;
 }

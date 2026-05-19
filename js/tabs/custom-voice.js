@@ -63,6 +63,10 @@ async function generateCV() {
   showStatus('cv', 'loading', streaming ? 'Generating (streaming)...' : 'Generating...');
 
   try {
+    if (await tryParallelGenerate(text, seg => API.ttsCustomVoice({...body, text: seg}), 'cv')) {
+      if (btn) btn.disabled = false;
+      return;
+    }
     const resp = streaming
       ? await API.ttsCustomVoiceStream(body)
       : await API.ttsCustomVoice(body);

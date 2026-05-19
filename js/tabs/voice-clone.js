@@ -135,6 +135,20 @@ async function generateVC() {
 
     setProgress('vc', 10);
     showStatus('vc', 'loading', streaming ? 'Cloning voice (streaming)...' : 'Cloning voice...');
+
+    const makeVcRequest = seg => {
+      const f = new FormData();
+      f.append('text', seg);
+      f.append('language', language);
+      f.append('ref_text', document.getElementById('vc_ref_text')?.value.trim() || '');
+      f.append('x_vector_only_mode', String(document.getElementById('vc_xvec')?.checked || false));
+      f.append('ref_audio', refAudio);
+      if (sPrefix) f.append('instruct', sPrefix);
+      Object.entries(getAdv('vc')).forEach(([k, v]) => f.append(k, String(v)));
+      return API.ttsVoiceClone(f);
+    };
+    if (await tryParallelGenerate(text, makeVcRequest, 'vc')) { if (btn) btn.disabled = false; return; }
+
     const resp = streaming
       ? await API.ttsVoiceCloneStream(fd)
       : await API.ttsVoiceClone(fd);
@@ -222,7 +236,18 @@ async function generateFromPromptVC() {
   setProgress('vcp', 10);
   showStatus('vcp', 'loading', 'Generating from voice prompt...');
 
+  const makeVcpRequest = seg => {
+    const f = new FormData();
+    f.append('text', seg);
+    f.append('language', language);
+    f.append('voice_prompt', ptInput.files[0]);
+    if (sPrefix) f.append('instruct', sPrefix);
+    Object.entries(getAdv('vcp')).forEach(([k, v]) => f.append(k, String(v)));
+    return API.ttsVoiceCloneFromPrompt(f);
+  };
+
   try {
+    if (await tryParallelGenerate(text, makeVcpRequest, 'vcp')) { if (btn) btn.disabled = false; return; }
     const resp = await API.ttsVoiceCloneFromPrompt(fd);
     if (!resp.ok) throw new Error(await resp.text());
     await handleStandardResponse(resp, 'vcp');

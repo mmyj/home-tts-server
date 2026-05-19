@@ -60,6 +60,10 @@ async function generateVD() {
   showStatus('vd', 'loading', streaming ? 'Generating (streaming)...' : 'Generating...');
 
   try {
+    if (await tryParallelGenerate(text, seg => API.ttsVoiceDesign({...body, text: seg}), 'vd')) {
+      if (btn) btn.disabled = false;
+      return;
+    }
     const resp = streaming
       ? await API.ttsVoiceDesignStream(body)
       : await API.ttsVoiceDesign(body);

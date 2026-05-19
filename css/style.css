@@ -432,6 +432,10 @@ body {
   width: 90px;
 }
 
+/* ── Settings ── */
+.settings-section { max-width: 480px; }
+.settings-section h3 { margin: 0 0 6px; font-size: 1em; }
+
 /* ── Prompt Library ── */
 .pt-toolbar { display: flex; justify-content: flex-end; margin-bottom: 14px; }
 .prompt-card {

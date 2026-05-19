@@ -47,6 +47,48 @@ const AudioHelper = {
     return this.convertToWav(file);
   },
 
+  async mergeWavBlobs(blobs) {
+    const buffers = await Promise.all(blobs.map(b => b.arrayBuffer()));
+
+    function dataOffset(buf) {
+      const v = new DataView(buf);
+      let i = 12;
+      while (i + 8 <= buf.byteLength) {
+        const id = String.fromCharCode(v.getUint8(i), v.getUint8(i+1), v.getUint8(i+2), v.getUint8(i+3));
+        const sz = v.getUint32(i + 4, true);
+        if (id === 'data') return i + 8;
+        i += 8 + sz;
+      }
+      return 44;
+    }
+
+    const offsets = buffers.map(dataOffset);
+    const first = new DataView(buffers[0]);
+    const sampleRate   = first.getUint32(24, true);
+    const numChannels  = first.getUint16(22, true);
+    const bitsPerSample = first.getUint16(34, true);
+
+    const pcmChunks = buffers.map((buf, i) => new Uint8Array(buf, offsets[i]));
+    const totalPcm  = pcmChunks.reduce((s, c) => s + c.length, 0);
+
+    const out   = new ArrayBuffer(44 + totalPcm);
+    const v     = new DataView(out);
+    const bytes = new Uint8Array(out);
+    const str   = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+
+    str(0, 'RIFF'); v.setUint32(4, 36 + totalPcm, true); str(8, 'WAVE');
+    str(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true);
+    v.setUint16(22, numChannels, true); v.setUint32(24, sampleRate, true);
+    v.setUint32(28, sampleRate * numChannels * bitsPerSample / 8, true);
+    v.setUint16(32, numChannels * bitsPerSample / 8, true); v.setUint16(34, bitsPerSample, true);
+    str(36, 'data'); v.setUint32(40, totalPcm, true);
+
+    let off = 44;
+    for (const chunk of pcmChunks) { bytes.set(chunk, off); off += chunk.length; }
+
+    return new Blob([out], { type: 'audio/wav' });
+  },
+
   async collectPcmStream(response, onChunk) {
     const sr = parseInt(response.headers.get('X-Sample-Rate')) || 24000;
     const reader = response.body.getReader();

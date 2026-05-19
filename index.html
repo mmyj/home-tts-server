@@ -46,6 +46,7 @@
       <button class="tab" id="tab_vc" onclick="switchTab('vc')" data-i18n="tab_vc">Voice Clone</button>
       <button class="tab" id="tab_tk" onclick="switchTab('tk')" data-i18n="tab_tk">Tokenizer</button>
       <button class="tab" id="tab_pt" onclick="switchTab('pt');refreshPromptList()" data-i18n="tab_pt">Prompts</button>
+      <button class="tab" id="tab_st" onclick="switchTab('st')" data-i18n="tab_st">Settings</button>
     </div>
 
     <!-- ══════════════════ Custom Voice ══════════════════ -->
@@ -505,6 +506,29 @@
       <div id="pt_list"></div>
     </div>
 
+    <div class="tab-content" id="panel_st">
+      <div class="settings-section">
+        <h3 data-i18n="lbl_parallel_tts">并发 TTS</h3>
+        <p class="desc" data-i18n="desc_parallel_tts">将文本按句子分割，并发请求 TTS 接口，完成后合并为完整音频。开启后自动跳过流式模式。</p>
+
+        <div class="checkbox-row">
+          <input type="checkbox" id="st_parallel_enabled">
+          <label for="st_parallel_enabled" data-i18n="lbl_parallel_tts">并发 TTS</label>
+        </div>
+
+        <div class="form-row" style="margin-top:12px">
+          <div class="form-group">
+            <label for="st_concurrency" data-i18n="lbl_concurrency">最大并发数</label>
+            <input type="number" id="st_concurrency" class="speed-input" min="1" max="10" step="1" value="3">
+          </div>
+          <div class="form-group">
+            <label for="st_split_min_len" data-i18n="lbl_split_min_len">最小分段长度（字符）</label>
+            <input type="number" id="st_split_min_len" class="speed-input" min="5" max="200" step="1" value="20">
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="footer">
       <span data-i18n="footer_note">AI-generated audio for personal use only. Not for impersonation or illegal use.</span>
       &nbsp;|&nbsp; <a href="http://qwen3-tts.m4yj.home/docs" target="_blank" data-i18n="api_docs">API Docs</a>
@@ -524,6 +548,7 @@
 <script src="js/tabs/voice-clone.js"></script>
 <script src="js/tabs/tokenizer.js"></script>
 <script src="js/tabs/prompts.js"></script>
+<script src="js/tabs/settings.js"></script>
 
 <script>
   document.addEventListener('DOMContentLoaded', () => {
@@ -533,6 +558,7 @@
     initVoiceClone();
     initTokenizer();
     initPrompts();
+    initSettings();
     refreshGpu();
     const docsLink = document.getElementById('apiDocsLink');
     if (docsLink) docsLink.href = TTS_BASE_URL + '/docs';
