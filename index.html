@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Qwen3-TTS</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ── Header ── -->
+<div class="header">
+  <div>
+    <h1>Qwen3-TTS</h1>
+    <div class="subtitle" data-i18n="subtitle">Custom Voice · Voice Design · Voice Clone · Tokenizer</div>
+  </div>
+  <div class="header-right">
+    <select id="langSelect" class="lang-select" onchange="setLanguage(this.value)">
+      <option value="en">English</option>
+      <option value="zh-CN">简体中文</option>
+      <option value="zh-TW">繁體中文</option>
+      <option value="ja">日本語</option>
+    </select>
+    <div class="gpu-badge" id="gpuBadge" onclick="refreshGpu()" title="Click to refresh">
+      <span class="dot off" id="gpuDot"></span>
+      <span id="gpuText">GPU: --</span>
+    </div>
+    <button class="btn btn-sm btn-outline" onclick="offloadGpu()" data-i18n="offload_gpu">Offload GPU</button>
+    <a class="btn btn-sm btn-outline" href="http://qwen3-tts.m4yj.home/docs" target="_blank" data-i18n="api_docs">API Docs</a>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- ── Sidebar ── -->
+  <div class="sidebar">
+    <h3 data-i18n="sidebar_speakers">Speakers</h3>
+    <div id="speakerList"></div>
+    <h3 data-i18n="sidebar_gpu">GPU Info</h3>
+    <div class="gpu-detail" id="gpuDetail"></div>
+  </div>
+
+  <!-- ── Main Content ── -->
+  <div class="content">
+    <div class="tabs" role="tablist">
+      <button class="tab active" id="tab_cv" onclick="switchTab('cv')" data-i18n="tab_cv">Custom Voice</button>
+      <button class="tab" id="tab_vd" onclick="switchTab('vd')" data-i18n="tab_vd">Voice Design</button>
+      <button class="tab" id="tab_vc" onclick="switchTab('vc')" data-i18n="tab_vc">Voice Clone</button>
+      <button class="tab" id="tab_tk" onclick="switchTab('tk')" data-i18n="tab_tk">Tokenizer</button>
+    </div>
+
+    <!-- ══════════════════ Custom Voice ══════════════════ -->
+    <div class="tab-content active" id="panel_cv">
+      <p class="desc" data-i18n="desc_cv">Generate speech with 9 preset premium voices. Add instructions to control emotion, speed, tone, and style.</p>
+
+      <div class="form-group">
+        <label for="cv_text" data-i18n="lbl_text">Text to synthesize</label>
+        <textarea id="cv_text" rows="4" placeholder="Enter text..."></textarea>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="cv_lang" data-i18n="lbl_language">Language</label>
+          <select id="cv_lang"></select>
+        </div>
+        <div class="form-group">
+          <label for="cv_speaker" data-i18n="lbl_speaker">Speaker</label>
+          <select id="cv_speaker"></select>
+        </div>
+        <div class="form-group" style="flex:0 0 auto;display:flex;align-items:flex-end">
+          <button class="btn btn-sm btn-outline" onclick="fillSampleCV()" data-i18n="btn_sample">Sample Text</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="cv_instruct" data-i18n="lbl_instruct">Instruction (optional)</label>
+        <textarea id="cv_instruct" rows="2" data-i18n-ph="ph_instruct" placeholder="e.g. Speak with a sad voice / 用愤怒的语气说"></textarea>
+      </div>
+
+      <div class="chips">
+        <span class="chip-label" data-i18n="lbl_examples">Examples:</span>
+        <span id="cv_inst_chips"></span>
+      </div>
+
+      <div class="form-group">
+        <label for="cv_speed" data-i18n="lbl_speed">Speech Rate</label>
+        <div class="speed-row">
+          <input type="range" id="cv_speed" min="0.5" max="2.0" step="0.1" value="1.0">
+          <span class="speed-val" id="cv_speed_val">1.0×</span>
+        </div>
+      </div>
+
+      <div class="checkbox-row">
+        <input type="checkbox" id="cv_stream">
+        <label for="cv_stream" data-i18n="lbl_stream">Streaming mode (PCM)</label>
+      </div>
+
+      <div class="collapse-header" onclick="toggleCollapse('cv_adv')">
+        <span data-i18n="lbl_adv">Advanced Settings</span> <span>▼</span>
+      </div>
+      <div class="collapse-body" id="cv_adv">
+        <div class="form-row">
+          <div class="form-group"><label>top_k</label><input type="text" id="cv_top_k" value="50"></div>
+          <div class="form-group"><label>top_p</label><input type="text" id="cv_top_p" value="0.9"></div>
+          <div class="form-group"><label>temperature</label><input type="text" id="cv_temp" value="1.0"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>repetition_penalty</label><input type="text" id="cv_rep" value="1.05"></div>
+          <div class="form-group"><label>max_new_tokens</label><input type="text" id="cv_mnt" value="2048"></div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" id="btn_gen_cv" onclick="generateCV()" style="width:100%;margin-top:6px" data-i18n="btn_generate">
+        Generate Speech
+      </button>
+
+      <div id="cv_status" class="status-bar" style="display:none"></div>
+      <div class="progress-bar" id="cv_progress"><div class="fill" id="cv_progress_fill"></div></div>
+
+      <div class="audio-player" id="cv_player" style="display:none">
+        <audio id="cv_audio" controls></audio>
+        <div class="download-row">
+          <button class="btn btn-sm btn-outline" onclick="downloadAudio('cv')" data-i18n="btn_download">Download WAV</button>
+          <span class="stream-chunks" id="cv_chunks"></span>
+        </div>
+      </div>
+
+      <div class="metrics-panel" id="cv_metrics" style="display:none">
+        <div class="metrics-grid">
+          <div class="metric"><div class="val" id="cv_m_load">--</div><div class="lbl" data-i18n="m_load">Model Load</div></div>
+          <div class="metric"><div class="val" id="cv_m_gen">--</div><div class="lbl" data-i18n="m_gen">Generation</div></div>
+          <div class="metric highlight"><div class="val" id="cv_m_total">--</div><div class="lbl" data-i18n="m_total">Total Time</div></div>
+          <div class="metric"><div class="val" id="cv_m_dur">--</div><div class="lbl" data-i18n="m_dur">Audio Duration</div></div>
+          <div class="metric"><div class="val" id="cv_m_size">--</div><div class="lbl" data-i18n="m_size">Data Size</div></div>
+          <div class="metric"><div class="val" id="cv_m_rtf">--</div><div class="lbl">RTF</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════ Voice Design ══════════════════ -->
+    <div class="tab-content" id="panel_vd">
+      <p class="desc" data-i18n="desc_vd">Design a new voice by describing its characteristics in natural language. Supports acoustic attributes, persona, age, and emotion control.</p>
+
+      <div class="form-group">
+        <label data-i18n="lbl_presets">Quick Presets</label>
+        <div class="chips" id="vd_presets"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="vd_text" data-i18n="lbl_text">Text to synthesize</label>
+        <textarea id="vd_text" rows="4" placeholder="Enter text..."></textarea>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="vd_lang" data-i18n="lbl_language">Language</label>
+          <select id="vd_lang"></select>
+        </div>
+        <div class="form-group" style="flex:0 0 auto;display:flex;align-items:flex-end">
+          <button class="btn btn-sm btn-outline" onclick="fillSampleVD()" data-i18n="btn_sample">Sample Text</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="vd_instruct" data-i18n="lbl_voice_desc">Voice Description</label>
+        <textarea id="vd_instruct" rows="4" data-i18n-ph="ph_voice_desc" placeholder="Describe the voice: gender, pitch, emotion, speed, accent, personality..."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="vd_speed" data-i18n="lbl_speed">Speech Rate</label>
+        <div class="speed-row">
+          <input type="range" id="vd_speed" min="0.5" max="2.0" step="0.1" value="1.0">
+          <span class="speed-val" id="vd_speed_val">1.0×</span>
+        </div>
+      </div>
+
+      <div class="checkbox-row">
+        <input type="checkbox" id="vd_stream">
+        <label for="vd_stream" data-i18n="lbl_stream">Streaming mode (PCM)</label>
+      </div>
+
+      <div class="collapse-header" onclick="toggleCollapse('vd_adv')">
+        <span data-i18n="lbl_adv">Advanced Settings</span> <span>▼</span>
+      </div>
+      <div class="collapse-body" id="vd_adv">
+        <div class="form-row">
+          <div class="form-group"><label>top_k</label><input type="text" id="vd_top_k" value="50"></div>
+          <div class="form-group"><label>top_p</label><input type="text" id="vd_top_p" value="0.9"></div>
+          <div class="form-group"><label>temperature</label><input type="text" id="vd_temp" value="1.0"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>repetition_penalty</label><input type="text" id="vd_rep" value="1.05"></div>
+          <div class="form-group"><label>max_new_tokens</label><input type="text" id="vd_mnt" value="2048"></div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" id="btn_gen_vd" onclick="generateVD()" style="width:100%;margin-top:6px" data-i18n="btn_generate">
+        Generate Speech
+      </button>
+
+      <div id="vd_status" class="status-bar" style="display:none"></div>
+      <div class="progress-bar" id="vd_progress"><div class="fill" id="vd_progress_fill"></div></div>
+
+      <div class="audio-player" id="vd_player" style="display:none">
+        <audio id="vd_audio" controls></audio>
+        <div class="download-row">
+          <button class="btn btn-sm btn-outline" onclick="downloadAudio('vd')" data-i18n="btn_download">Download WAV</button>
+          <span class="stream-chunks" id="vd_chunks"></span>
+        </div>
+      </div>
+
+      <div class="metrics-panel" id="vd_metrics" style="display:none">
+        <div class="metrics-grid">
+          <div class="metric"><div class="val" id="vd_m_load">--</div><div class="lbl" data-i18n="m_load">Model Load</div></div>
+          <div class="metric"><div class="val" id="vd_m_gen">--</div><div class="lbl" data-i18n="m_gen">Generation</div></div>
+          <div class="metric highlight"><div class="val" id="vd_m_total">--</div><div class="lbl" data-i18n="m_total">Total Time</div></div>
+          <div class="metric"><div class="val" id="vd_m_dur">--</div><div class="lbl" data-i18n="m_dur">Audio Duration</div></div>
+          <div class="metric"><div class="val" id="vd_m_size">--</div><div class="lbl" data-i18n="m_size">Data Size</div></div>
+          <div class="metric"><div class="val" id="vd_m_rtf">--</div><div class="lbl">RTF</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════ Voice Clone ══════════════════ -->
+    <div class="tab-content" id="panel_vc">
+      <p class="desc" data-i18n="desc_vc">Clone any voice from a reference audio clip. Supports cross-lingual cloning across 10 languages.</p>
+
+      <!-- Mode toggle -->
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="clone_mode_direct" onclick="switchCloneMode('direct')" data-i18n="btn_direct">
+          Direct Clone
+        </button>
+        <button class="mode-btn" id="clone_mode_prompt" onclick="switchCloneMode('prompt')" data-i18n="btn_prompt_flow">
+          Prompt Flow
+        </button>
+      </div>
+
+      <!-- ── Direct Clone ── -->
+      <div id="vc_direct_mode">
+        <div class="form-group">
+          <label data-i18n="lbl_ref_audio">Reference Audio (3s+ recommended)</label>
+          <div class="file-upload" id="vc_ref_drop" onclick="document.getElementById('vc_ref_file').click()">
+            <span class="upload-icon">📁</span>
+            <span class="upload-text" data-i18n="ph_ref_drop">Click or drag audio file here</span>
+            <input type="file" id="vc_ref_file" accept="audio/*">
+          </div>
+          <audio id="vc_ref_preview" controls style="width:100%;margin-top:8px;display:none"></audio>
+        </div>
+
+        <div class="form-group">
+          <label for="vc_ref_text" data-i18n="lbl_ref_text">Reference Text (transcript of ref audio, optional)</label>
+          <textarea id="vc_ref_text" rows="2" data-i18n-ph="ph_ref_text" placeholder="Transcript of the reference audio..."></textarea>
+        </div>
+
+        <div class="checkbox-row">
+          <input type="checkbox" id="vc_xvec">
+          <label for="vc_xvec" data-i18n="lbl_xvec">X-Vector Only mode (no ref text needed, lower quality)</label>
+        </div>
+
+        <div class="form-group">
+          <label for="vc_text" data-i18n="lbl_text_clone">Text to synthesize</label>
+          <textarea id="vc_text" rows="4" data-i18n-ph="ph_text_clone" placeholder="Enter new text to speak in the cloned voice..."></textarea>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="vc_lang" data-i18n="lbl_language">Language</label>
+            <select id="vc_lang"></select>
+          </div>
+          <div class="form-group" style="flex:0 0 auto;display:flex;align-items:flex-end">
+            <button class="btn btn-sm btn-outline" onclick="fillSampleVC()" data-i18n="btn_sample">Sample Text</button>
+          </div>
+        </div>
+
+        <div class="checkbox-row">
+          <input type="checkbox" id="vc_stream">
+          <label for="vc_stream" data-i18n="lbl_stream">Streaming mode (PCM)</label>
+        </div>
+
+        <div class="collapse-header" onclick="toggleCollapse('vc_adv')">
+          <span data-i18n="lbl_adv">Advanced Settings</span> <span>▼</span>
+        </div>
+        <div class="collapse-body" id="vc_adv">
+          <div class="form-row">
+            <div class="form-group"><label>top_k</label><input type="text" id="vc_top_k" value="50"></div>
+            <div class="form-group"><label>top_p</label><input type="text" id="vc_top_p" value="0.9"></div>
+            <div class="form-group"><label>temperature</label><input type="text" id="vc_temp" value="1.0"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>repetition_penalty</label><input type="text" id="vc_rep" value="1.05"></div>
+            <div class="form-group"><label>max_new_tokens</label><input type="text" id="vc_mnt" value="2048"></div>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" id="btn_gen_vc" onclick="generateVC()" style="width:100%;margin-top:6px" data-i18n="btn_clone">
+          Clone Voice &amp; Generate
+        </button>
+
+        <div id="vc_status" class="status-bar" style="display:none"></div>
+        <div class="progress-bar" id="vc_progress"><div class="fill" id="vc_progress_fill"></div></div>
+
+        <div class="audio-player" id="vc_player" style="display:none">
+          <audio id="vc_audio" controls></audio>
+          <div class="download-row">
+            <button class="btn btn-sm btn-outline" onclick="downloadAudio('vc')" data-i18n="btn_download">Download WAV</button>
+            <span class="stream-chunks" id="vc_chunks"></span>
+          </div>
+        </div>
+
+        <div class="metrics-panel" id="vc_metrics" style="display:none">
+          <div class="metrics-grid">
+            <div class="metric"><div class="val" id="vc_m_load">--</div><div class="lbl" data-i18n="m_load">Model Load</div></div>
+            <div class="metric"><div class="val" id="vc_m_gen">--</div><div class="lbl" data-i18n="m_gen">Generation</div></div>
+            <div class="metric highlight"><div class="val" id="vc_m_total">--</div><div class="lbl" data-i18n="m_total">Total Time</div></div>
+            <div class="metric"><div class="val" id="vc_m_dur">--</div><div class="lbl" data-i18n="m_dur">Audio Duration</div></div>
+            <div class="metric"><div class="val" id="vc_m_size">--</div><div class="lbl" data-i18n="m_size">Data Size</div></div>
+            <div class="metric"><div class="val" id="vc_m_rtf">--</div><div class="lbl">RTF</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Prompt Flow ── -->
+      <div id="vc_prompt_mode" style="display:none">
+
+        <!-- Step 1 -->
+        <div class="step-card">
+          <div class="step-header" data-i18n="step1_title">Step 1 — Save Voice Prompt</div>
+          <div class="step-body">
+            <div class="form-group">
+              <label data-i18n="lbl_ref_audio">Reference Audio</label>
+              <div class="file-upload" id="vcp_ref_drop" onclick="document.getElementById('vcp_ref_file').click()">
+                <span class="upload-icon">📁</span>
+                <span class="upload-text" data-i18n="ph_ref_drop">Click or drag audio file here</span>
+                <input type="file" id="vcp_ref_file" accept="audio/*">
+              </div>
+              <audio id="vcp_ref_preview" controls style="width:100%;margin-top:8px;display:none"></audio>
+            </div>
+
+            <div class="form-group">
+              <label for="vcp_ref_text" data-i18n="lbl_ref_text_opt">Reference Text (optional)</label>
+              <textarea id="vcp_ref_text" rows="2" data-i18n-ph="ph_ref_text_opt" placeholder="Transcript of reference audio..."></textarea>
+            </div>
+
+            <div class="checkbox-row">
+              <input type="checkbox" id="vcp_xvec">
+              <label for="vcp_xvec" data-i18n="lbl_xvec">X-Vector Only mode (no ref text needed, lower quality)</label>
+            </div>
+
+            <button class="btn btn-primary" id="btn_save_prompt" onclick="savePromptVC()" data-i18n="btn_save_prompt">
+              Save Voice Prompt (.pt)
+            </button>
+            <div id="vcp_save_status" class="status-bar" style="display:none"></div>
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="step-card">
+          <div class="step-header" data-i18n="step2_title">Step 2 — Generate from Saved Prompt</div>
+          <div class="step-body">
+            <div class="form-group">
+              <label data-i18n="lbl_pt_file">Voice Prompt File (.pt)</label>
+              <div class="file-upload" id="vcp_pt_drop" onclick="document.getElementById('vcp_pt_file').click()">
+                <span class="upload-icon">📂</span>
+                <span class="upload-text" data-i18n="ph_pt_drop">Click or drag .pt file here</span>
+                <input type="file" id="vcp_pt_file" accept=".pt">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="vcp_text" data-i18n="lbl_text_clone">Text to synthesize</label>
+              <textarea id="vcp_text" rows="4" data-i18n-ph="ph_text_clone" placeholder="Enter new text to speak in the cloned voice..."></textarea>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="vcp_lang" data-i18n="lbl_language">Language</label>
+                <select id="vcp_lang"></select>
+              </div>
+              <div class="form-group" style="flex:0 0 auto;display:flex;align-items:flex-end">
+                <button class="btn btn-sm btn-outline" onclick="fillSampleVCP()" data-i18n="btn_sample">Sample Text</button>
+              </div>
+            </div>
+
+            <div class="collapse-header" onclick="toggleCollapse('vcp_adv')">
+              <span data-i18n="lbl_adv">Advanced Settings</span> <span>▼</span>
+            </div>
+            <div class="collapse-body" id="vcp_adv">
+              <div class="form-row">
+                <div class="form-group"><label>top_k</label><input type="text" id="vcp_top_k" value="50"></div>
+                <div class="form-group"><label>top_p</label><input type="text" id="vcp_top_p" value="0.9"></div>
+                <div class="form-group"><label>temperature</label><input type="text" id="vcp_temp" value="1.0"></div>
+              </div>
+              <div class="form-row">
+                <div class="form-group"><label>repetition_penalty</label><input type="text" id="vcp_rep" value="1.05"></div>
+                <div class="form-group"><label>max_new_tokens</label><input type="text" id="vcp_mnt" value="2048"></div>
+              </div>
+            </div>
+
+            <button class="btn btn-primary" id="btn_gen_vcp" onclick="generateFromPromptVC()" style="width:100%;margin-top:6px" data-i18n="btn_generate">
+              Generate Speech
+            </button>
+
+            <div id="vcp_status" class="status-bar" style="display:none"></div>
+            <div class="progress-bar" id="vcp_progress"><div class="fill" id="vcp_progress_fill"></div></div>
+
+            <div class="audio-player" id="vcp_player" style="display:none">
+              <audio id="vcp_audio" controls></audio>
+              <div class="download-row">
+                <button class="btn btn-sm btn-outline" onclick="downloadAudio('vcp')" data-i18n="btn_download">Download WAV</button>
+              </div>
+            </div>
+
+            <div class="metrics-panel" id="vcp_metrics" style="display:none">
+              <div class="metrics-grid">
+                <div class="metric"><div class="val" id="vcp_m_load">--</div><div class="lbl" data-i18n="m_load">Model Load</div></div>
+                <div class="metric"><div class="val" id="vcp_m_gen">--</div><div class="lbl" data-i18n="m_gen">Generation</div></div>
+                <div class="metric highlight"><div class="val" id="vcp_m_total">--</div><div class="lbl" data-i18n="m_total">Total Time</div></div>
+                <div class="metric"><div class="val" id="vcp_m_dur">--</div><div class="lbl" data-i18n="m_dur">Audio Duration</div></div>
+                <div class="metric"><div class="val" id="vcp_m_size">--</div><div class="lbl" data-i18n="m_size">Data Size</div></div>
+                <div class="metric"><div class="val" id="vcp_m_rtf">--</div><div class="lbl">RTF</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /vc_prompt_mode -->
+    </div>
+
+    <!-- ══════════════════ Tokenizer ══════════════════ -->
+    <div class="tab-content" id="panel_tk">
+      <p class="desc" data-i18n="desc_tk">Encode audio to speech tokens and decode tokens back to audio using Qwen3-TTS-Tokenizer-12Hz.</p>
+
+      <div class="tk-columns">
+        <!-- Encode -->
+        <div>
+          <div class="tk-section-title" data-i18n="tk_enc_title">Encode — Audio to Tokens</div>
+
+          <div class="file-upload" id="tk_enc_drop" onclick="document.getElementById('tk_enc_file').click()">
+            <span class="upload-icon">🎵</span>
+            <span class="upload-text" data-i18n="ph_audio_drop">Click or drag audio file here</span>
+            <input type="file" id="tk_enc_file" accept="audio/*">
+          </div>
+
+          <button class="btn btn-primary btn-sm" id="btn_encode" onclick="encodeAudio()" style="margin-top:10px" data-i18n="btn_encode">
+            Encode
+          </button>
+
+          <div class="form-group" style="margin-top:12px">
+            <label data-i18n="lbl_token_codes">Token Codes (JSON)</label>
+            <textarea class="codes-textarea" id="tk_codes" rows="7" readonly placeholder="Encoded tokens will appear here..."></textarea>
+          </div>
+
+          <div style="display:flex;gap:6px;margin-top:4px">
+            <button class="btn btn-sm btn-outline" id="btn_copy_codes" data-i18n="btn_copy">Copy</button>
+            <button class="btn btn-sm btn-outline" id="btn_copy_to_dec" data-i18n="btn_copy_to_dec">Copy to Decode</button>
+          </div>
+
+          <div id="tk_enc_status" style="font-size:.8em;color:var(--text2);margin-top:8px"></div>
+        </div>
+
+        <!-- Decode -->
+        <div>
+          <div class="tk-section-title" data-i18n="tk_dec_title">Decode — Tokens to Audio</div>
+
+          <div class="form-group">
+            <label for="tk_dec_input" data-i18n="lbl_token_codes">Token Codes (JSON array)</label>
+            <textarea class="codes-textarea" id="tk_dec_input" rows="7" data-i18n-ph="ph_token_input" placeholder="Paste token codes from encode output..."></textarea>
+          </div>
+
+          <button class="btn btn-primary btn-sm" id="btn_decode" onclick="decodeTokens()" data-i18n="btn_decode">
+            Decode
+          </button>
+
+          <div class="audio-player" id="tk_dec_player" style="display:none;margin-top:12px">
+            <audio id="tk_dec_audio" controls></audio>
+            <div class="download-row">
+              <button class="btn btn-sm btn-outline" onclick="downloadTokenizerAudio()" data-i18n="btn_download_tk">Download WAV</button>
+            </div>
+          </div>
+
+          <div id="tk_dec_status" style="font-size:.8em;color:var(--text2);margin-top:8px"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span data-i18n="footer_note">AI-generated audio for personal use only. Not for impersonation or illegal use.</span>
+      &nbsp;|&nbsp; <a href="http://qwen3-tts.m4yj.home/docs" target="_blank" data-i18n="api_docs">API Docs</a>
+      &nbsp;|&nbsp; <a href="https://arxiv.org/abs/2601.15621" target="_blank" data-i18n="lbl_paper">Paper</a>
+    </div>
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<!-- Scripts — order matters: api → audio → ui → tabs → init -->
+<script src="js/api.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/tabs/custom-voice.js"></script>
+<script src="js/tabs/voice-design.js"></script>
+<script src="js/tabs/voice-clone.js"></script>
+<script src="js/tabs/tokenizer.js"></script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    initSpeakerSidebar();
+    initCustomVoice();
+    initVoiceDesign();
+    initVoiceClone();
+    initTokenizer();
+    refreshGpu();
+    const sel = document.getElementById('langSelect');
+    if (sel) sel.value = currentLang;
+    setLanguage(currentLang);
+  });
+</script>
+
+</body>
+</html>
