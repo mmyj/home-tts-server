@@ -10,8 +10,6 @@ function initVoiceDesign() {
     });
   }
 
-  syncSpeedDisplay('vd_speed', 'vd_speed_val');
-
   // Preset chips
   const presetsEl = document.getElementById('vd_presets');
   if (presetsEl) {

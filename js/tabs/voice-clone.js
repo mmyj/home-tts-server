@@ -81,8 +81,6 @@ function initVoiceClone() {
     file => markFileUploaded(document.getElementById('vcp_pt_drop'), file)
   );
 
-  syncSpeedDisplay('vc_speed', 'vc_speed_val');
-  syncSpeedDisplay('vcp_speed', 'vcp_speed_val');
   refreshVcpLibSelect();
 }
 

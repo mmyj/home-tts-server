@@ -21,8 +21,6 @@ function initCustomVoice() {
     });
   }
 
-  syncSpeedDisplay('cv_speed', 'cv_speed_val');
-
   // Instruction example chips
   const chipsEl = document.getElementById('cv_inst_chips');
   if (chipsEl) {

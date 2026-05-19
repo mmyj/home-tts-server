@@ -428,22 +428,8 @@ body {
 .lang-select:focus { outline: none; border-color: var(--accent); }
 
 /* ── Speed control ── */
-.speed-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.speed-row input[type="range"] {
-  flex: 1;
-  accent-color: var(--accent);
-  cursor: pointer;
-}
-.speed-val {
-  font-size: .88em;
-  color: var(--accent2);
-  font-weight: 600;
-  min-width: 36px;
-  text-align: right;
+.speed-input {
+  width: 90px;
 }
 
 /* ── Prompt Library ── */

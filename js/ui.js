@@ -407,14 +407,3 @@ function fillSample(textareaId, langSelectId) {
   const ta     = document.getElementById(textareaId);
   if (ta) ta.value = sample;
 }
-
-// ── Speed slider helper ──
-
-function syncSpeedDisplay(sliderId, displayId) {
-  const slider = document.getElementById(sliderId);
-  const display = document.getElementById(displayId);
-  if (!slider || !display) return;
-  const update = () => { display.textContent = parseFloat(slider.value).toFixed(1) + '×'; };
-  slider.addEventListener('input', update);
-  update();
-}
