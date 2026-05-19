@@ -107,10 +107,6 @@ function fillSampleVC() {
   fillSample('vc_text', 'vc_lang');
 }
 
-function fillSampleVCP() {
-  fillSample('vcp_text', 'vcp_lang');
-}
-
 // Direct clone — POST /api/tts/voice-clone (multipart)
 async function generateVC() {
   const text      = document.getElementById('vc_text')?.value.trim();
