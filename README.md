@@ -1,6 +1,6 @@
 # home-tts-server
 
-Qwen3-TTS 的本地 Web UI，连接部署在局域网的 TTS 服务（默认 `http://qwen3-tts.m4yj.home`）。
+Qwen3-TTS 的本地 Web UI，连接部署在局域网的 TTS 服务。
 
 ## 功能
 
@@ -9,6 +9,14 @@ Qwen3-TTS 的本地 Web UI，连接部署在局域网的 TTS 服务（默认 `ht
 - **Voice Clone** — 上传参考音频克隆声音，支持直接克隆和 Prompt 工作流两种模式
 - **音色库** — 管理已保存的声音 Prompt（.pt 文件），支持导入/导出
 - **Tokenizer** — 音频编解码（encode/decode）
+
+## 配置
+
+编辑 `config.js`，将 `TTS_BASE_URL` 改为你的 TTS 服务地址：
+
+```js
+const TTS_BASE_URL = 'http://your-tts-server';
+```
 
 ## 快速开始
 
@@ -37,10 +45,9 @@ python server.py
 ```
 .
 ├── index.html
+├── config.js          # TTS 服务地址配置
 ├── server.py          # 本地服务器（静态托管 + 音色库 API）
 ├── requirements.txt
-├── prompts.db         # SQLite（音色库元数据，自动生成）
-├── prompts/           # .pt 文件存储目录（自动生成）
 ├── css/
 │   └── style.css
 └── js/
@@ -60,4 +67,4 @@ python server.py
 
 - 参考音频支持任意浏览器可解码格式（m4a、mp3、wav 等），上传前会自动转换为 WAV
 - 需要先启动 `python server.py` 才能使用音色库功能；直接打开 `index.html` 文件则音色库不可用
-- `prompts/` 目录和 `prompts.db` 可以提交到 git，实现音色库的版本管理和多机共享
+- `prompts/` 目录和 `prompts.db` 已加入 `.gitignore`，不会被提交到远程

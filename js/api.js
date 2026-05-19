@@ -1,4 +1,4 @@
-const BASE = 'http://qwen3-tts.m4yj.home';
+const BASE = TTS_BASE_URL;
 
 const API = {
   async getSpeakers() {
