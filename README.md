@@ -9,16 +9,36 @@ Qwen3-TTS 的本地 Web UI，连接部署在局域网的 TTS 服务。
 - **Voice Clone** — 上传参考音频克隆声音，支持直接克隆和 Prompt 工作流两种模式
 - **音色库** — 管理已保存的声音 Prompt（.pt 文件），支持导入/导出
 - **Tokenizer** — 音频编解码（encode/decode）
+- **并发 TTS** — 将长文本分句后并发请求，完成后合并为完整音频（在设置页开启）
 
-## 配置
+## 启动步骤
 
-编辑 `config.js`，将 `TTS_BASE_URL` 改为你的 TTS 服务地址：
+### 第一步：启动 TTS 后端
 
-```js
-const TTS_BASE_URL = 'http://your-tts-server';
+后端使用 Docker 镜像 `neosun/qwen3-tts:2.0.0`：
+
+```bash
+docker pull neosun/qwen3-tts:2.0.0
+docker run -d \
+  --gpus all \
+  -p 8000:8000 \
+  --name qwen3-tts \
+  neosun/qwen3-tts:2.0.0
 ```
 
-## 快速开始
+服务默认监听 `http://localhost:8000`，可通过 `http://localhost:8000/docs` 查看 API 文档。
+
+### 第二步：配置 UI
+
+编辑 `config.js`，将 `TTS_BASE_URL` 改为 TTS 服务的地址：
+
+```js
+const TTS_BASE_URL = 'http://localhost:8000';
+```
+
+如果 TTS 服务部署在局域网其他机器上，填写对应 IP 或主机名。
+
+### 第三步：启动 UI 服务器
 
 ```bash
 pip install -r requirements.txt
@@ -27,9 +47,7 @@ python server.py
 
 打开 http://localhost:8080
 
-`server.py` 是一个轻量 FastAPI 服务，负责：
-1. 托管静态页面
-2. 管理音色库（SQLite + `prompts/` 目录存储 .pt 文件）
+`server.py` 是一个轻量 FastAPI 服务，负责托管静态页面并管理音色库（SQLite + `prompts/` 目录）。
 
 ## Voice Clone 工作流
 
@@ -60,6 +78,7 @@ python server.py
         ├── voice-design.js
         ├── voice-clone.js
         ├── prompts.js
+        ├── settings.js
         └── tokenizer.js
 ```
 
