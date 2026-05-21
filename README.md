@@ -18,16 +18,10 @@ Qwen3-TTS 的本地 Web UI，连接部署在局域网的 TTS 服务。
 后端使用 Docker 镜像 `neosun/qwen3-tts:2.0.0`，以下为参考 `docker-compose.yml`：
 
 ```yaml
-networks:
-  1panel-network:
-    external: true
-
 services:
   qwen3-tts:
     container_name: qwen3-tts
     image: neosun/qwen3-tts:2.0.0
-    networks:
-      - 1panel-network
     ports:
       - "8766:8766"
     environment:
