@@ -41,7 +41,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: ["1"]
+              device_ids: ["0"]
               capabilities: [gpu]
     restart: unless-stopped
 ```
@@ -52,7 +52,7 @@ docker compose up -d
 
 服务启动后监听 `http://localhost:8766`，可通过 `http://localhost:8766/docs` 查看 API 文档。
 
-> `device_ids: ["1"]` 指定使用第二块 GPU（从 0 开始编号），按实际情况修改。  
+> `device_ids: ["0"]` 指定使用第一块 GPU，按实际情况修改。  
 > `HF_HUB_OFFLINE=1` 表示离线模式，模型需提前下载到 `QWEN_TTS_MODEL_DIR`。
 
 ### 第二步：配置 UI
