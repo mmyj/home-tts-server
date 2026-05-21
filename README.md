@@ -15,18 +15,45 @@ Qwen3-TTS 的本地 Web UI，连接部署在局域网的 TTS 服务。
 
 ### 第一步：启动 TTS 后端
 
-后端使用 Docker 镜像 `neosun/qwen3-tts:2.0.0`：
+后端使用 Docker 镜像 `neosun/qwen3-tts:2.0.0`，以下为参考 `docker-compose.yml`：
 
-```bash
-docker pull neosun/qwen3-tts:2.0.0
-docker run -d \
-  --gpus all \
-  -p 8000:8000 \
-  --name qwen3-tts \
-  neosun/qwen3-tts:2.0.0
+```yaml
+networks:
+  1panel-network:
+    external: true
+
+services:
+  qwen3-tts:
+    container_name: qwen3-tts
+    image: neosun/qwen3-tts:2.0.0
+    networks:
+      - 1panel-network
+    ports:
+      - "8766:8766"
+    environment:
+      - PORT=8766
+      - QWEN_TTS_MODEL_DIR=/app/models
+      - HF_HUB_OFFLINE=1
+    volumes:
+      - ./data:/tmp/qwen3-tts
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["1"]
+              capabilities: [gpu]
+    restart: unless-stopped
 ```
 
-服务默认监听 `http://localhost:8000`，可通过 `http://localhost:8000/docs` 查看 API 文档。
+```bash
+docker compose up -d
+```
+
+服务启动后监听 `http://localhost:8766`，可通过 `http://localhost:8766/docs` 查看 API 文档。
+
+> `device_ids: ["1"]` 指定使用第二块 GPU（从 0 开始编号），按实际情况修改。  
+> `HF_HUB_OFFLINE=1` 表示离线模式，模型需提前下载到 `QWEN_TTS_MODEL_DIR`。
 
 ### 第二步：配置 UI
 
