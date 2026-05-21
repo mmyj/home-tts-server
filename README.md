@@ -54,7 +54,7 @@ docker compose up -d
 编辑 `config.js`，将 `TTS_BASE_URL` 改为 TTS 服务的地址：
 
 ```js
-const TTS_BASE_URL = 'http://localhost:8000';
+const TTS_BASE_URL = 'http://localhost:8766';
 ```
 
 如果 TTS 服务部署在局域网其他机器上，填写对应 IP 或主机名。
